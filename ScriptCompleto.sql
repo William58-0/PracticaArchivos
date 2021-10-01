@@ -406,101 +406,53 @@ GROUP BY DIRECCION.Pais, DIRECCION.Ciudad)*100/(
 FROM DIRECCION D WHERE D.Pais='United States';
 
 -- 7)  
-SELECT Pais, Ciudad FROM DIRECCION ORDER BY Pais ASC;
-
---numero de ciudades por pais
-SELECT DCP.Pais, COUNT(*) FROM DIRECCION DCP
-GROUP BY DCP.Pais ORDER BY DCP.Pais ASC;
-
---rentas por ciudad y pais correcto
-SELECT DIRECCION.Pais, DIRECCION.Ciudad, RENTA.FechaRenta
-FROM RENTA 
-INNER JOIN CLIENTE ON RENTA.Cliente = CLIENTE.Correo
-INNER JOIN DIRECCION ON CLIENTE.idDireccion = DIRECCION.idDireccion
-WHERE DIRECCION.Pais='Afghanistan' and DIRECCION.Ciudad='Kabul';
-
 -- promedio = (rentas totales pais y ciudad)/(no.ciudades por pais) DEFINITIVE
 SELECT DISTINCT DP.Pais, DP.Ciudad, (SELECT COUNT(*)
 									FROM RENTA
 									INNER JOIN CLIENTE ON RENTA.Cliente = CLIENTE.Correo
 									INNER JOIN DIRECCION ON CLIENTE.idDireccion = DIRECCION.idDireccion
-									WHERE DIRECCION.Pais=DP.Pais and DIRECCION.Ciudad=DP.Ciudad), (
-	(SELECT COUNT(*)
+									WHERE DIRECCION.Pais=DP.Pais and DIRECCION.Ciudad=DP.Ciudad) AS Rentas,
+	(
+	ROUND((SELECT COUNT(*)
 				FROM RENTA
 				INNER JOIN CLIENTE ON RENTA.Cliente = CLIENTE.Correo
 				INNER JOIN DIRECCION ON CLIENTE.idDireccion = DIRECCION.idDireccion
-				WHERE DIRECCION.Pais=DP.Pais and DIRECCION.Ciudad=DP.Ciudad)
+				WHERE DIRECCION.Pais=DP.Pais and DIRECCION.Ciudad=DP.Ciudad)::DECIMAL
 							/
-	(SELECT COUNT(*) FROM DIRECCION DCP WHERE DCP.Pais=DP.Pais GROUP BY DCP.Pais)
-						   ) as Promedio
+	(SELECT COUNT(*) FROM DIRECCION DCP WHERE DCP.Pais=DP.Pais GROUP BY DCP.Pais)::DECIMAL,2)
+	)AS Promedio
 FROM DIRECCION DP ORDER BY DP.Pais ASC, DP.Ciudad ASC;
 
 --8)
-SELECT DISTINCT CORREO_CLIENTE, NOMBRE_PELICULA, FECHA_RENTA FROM TEMPORAL WHERE PAIS_CLIENTE='United States' and CIUDAD_CLIENTE='Aurora'
-SELECT DISTINCT Cliente, Pelicula, FechaRenta FROM RENTA
-
---Rentas totales pais
-SELECT RENTA.Cliente, RENTA.Pelicula, RENTA.FechaRenta, DIRECCION.Pais
-FROM RENTA 
-INNER JOIN CLIENTE ON RENTA.Cliente = CLIENTE.Correo
-INNER JOIN PELICULA ON RENTA.Pelicula = PELICULA.Nombre
-INNER JOIN DIRECCION ON CLIENTE.idDireccion = DIRECCION.idDireccion;
-WHERE DIRECCION.Pais='United States';
-
---Rentas del pais en categoria sports
-SELECT RENTA.Cliente, RENTA.Pelicula, RENTA.FechaRenta
-FROM RENTA 
-INNER JOIN CLIENTE ON RENTA.Cliente = CLIENTE.Correo
-INNER JOIN PELICULA ON RENTA.Pelicula = PELICULA.Nombre
-INNER JOIN DIRECCION ON CLIENTE.idDireccion = DIRECCION.idDireccion
-WHERE DIRECCION.Pais='United States' and LOWER(PELICULA.Categoria)=LOWER('Sports');
-
---completo
---porcentaje de rentas=(rentas de sport por pais) / (rentas por pais)
-SELECT DP.Pais, coalesce((
+--porcentaje de rentas=(rentas de sport por pais)*100 / (rentas por pais)
+SELECT DISTINCT DP.Pais, CONCAT(ROUND((
 	(SELECT COUNT(*)
-	FROM RENTA RENTA1 
-	INNER JOIN CLIENTE CLIENTE1 ON RENTA1.Cliente = CLIENTE1.Correo
-	INNER JOIN PELICULA PELICULA1 ON RENTA1.Pelicula = PELICULA1.Nombre
-	INNER JOIN DIRECCION DIRECCION1 ON CLIENTE1.idDireccion = DIRECCION1.idDireccion
-	WHERE DIRECCION1.Pais=DP.Pais)
-		/
-	NULLIF((SELECT COUNT(*)
 		FROM RENTA RENTA2
 		INNER JOIN CLIENTE CLIENTE2  ON RENTA2.Cliente = CLIENTE2.Correo
 		INNER JOIN PELICULA PELICULA2 ON RENTA2.Pelicula = PELICULA2.Nombre
 		INNER JOIN DIRECCION DIRECCION2 ON CLIENTE2.idDireccion = DIRECCION2.idDireccion
-		WHERE DIRECCION2.Pais=DP.Pais and PELICULA2.Categoria='Sports'),0)
-		),0) AS PROMEDIO_SPORTS
+		WHERE DIRECCION2.Pais=DP.Pais and PELICULA2.Categoria='Sports' HAVING COUNT(*)>0)::DECIMAL*100
+		/
+	NULLIF((SELECT DISTINCT COUNT(*)
+		FROM RENTA RENTA1
+		INNER JOIN CLIENTE CLIENTE1  ON RENTA1.Cliente = CLIENTE1.Correo
+		INNER JOIN PELICULA PELICULA1 ON RENTA1.Pelicula = PELICULA1.Nombre
+		INNER JOIN DIRECCION DIRECCION1 ON CLIENTE1.idDireccion = DIRECCION1.idDireccion
+		WHERE DIRECCION1.Pais=DP.Pais
+	    HAVING COUNT(*)>0)::DECIMAL,0)
+		),2), ' %') AS PORCENTAJE_SPORTS
 FROM DIRECCION DP ORDER BY DP.Pais ASC;
-					 
+					 				 
 --9)
--- NO. DE RENTAS POR CIUDAD DE ESTADOS UNIDOS
-SELECT RENTA.Cliente, RENTA.Pelicula, RENTA.FechaRenta -- se reemplaza con count(*)
-FROM RENTA 
-INNER JOIN CLIENTE ON RENTA.Cliente = CLIENTE.Correo
-INNER JOIN PELICULA ON RENTA.Pelicula = PELICULA.Nombre
-INNER JOIN DIRECCION ON CLIENTE.idDireccion = DIRECCION.idDireccion
-WHERE DIRECCION.Pais='United States' and DIRECCION.Ciudad='Aurora';	
-		 
--- NO. DE RENTAS DE DAYTON
-SELECT RENTA.Cliente, RENTA.Pelicula, RENTA.FechaRenta -- se reemplaza con count(*)
-FROM RENTA 
-INNER JOIN CLIENTE ON RENTA.Cliente = CLIENTE.Correo
-INNER JOIN PELICULA ON RENTA.Pelicula = PELICULA.Nombre
-INNER JOIN DIRECCION ON CLIENTE.idDireccion = DIRECCION.idDireccion
-WHERE DIRECCION.Ciudad='Dayton';	
-				
-					 
 SELECT DP.Ciudad, (SELECT COUNT(*)
 						FROM RENTA 
 						INNER JOIN CLIENTE ON RENTA.Cliente = CLIENTE.Correo
 						INNER JOIN PELICULA ON RENTA.Pelicula = PELICULA.Nombre
 						INNER JOIN DIRECCION ON CLIENTE.idDireccion = DIRECCION.idDireccion
 						WHERE (DIRECCION.Pais='United States' or DIRECCION.Pais='Estados Unidos') and
-						 DIRECCION.Ciudad=DP.Ciudad)		 
+						 DIRECCION.Ciudad=DP.Ciudad) AS Rentas	 
 FROM DIRECCION DP WHERE (DP.Pais='United States' or DP.Pais='Estados Unidos') and
-					 --rentas > rentas dayton
+					 -- rentas > rentas dayton
 						(SELECT COUNT(*)
 						FROM RENTA RENTA1 
 						INNER JOIN CLIENTE CLIENTE1 ON RENTA1.Cliente = CLIENTE1.Correo
@@ -519,19 +471,16 @@ FROM DIRECCION DP WHERE (DP.Pais='United States' or DP.Pais='Estados Unidos') an
 					 
 --10)
 --CUIDADES POR PAIS EN RENTAS
+DROP TABLE IF EXISTS CONT_CAT;
 CREATE TEMP TABLE IF NOT EXISTS CONT_CAT AS 				 
-	SELECT DISTINCT DIRECCION.Ciudad, DIRECCION.Pais, PELICULA.Categoria, COUNT(*) AS CONT-- se reemplaza con count(*)
+	SELECT DISTINCT DIRECCION.Ciudad, DIRECCION.Pais, PELICULA.Categoria, COUNT(*) AS CONT
 	FROM RENTA 
 	INNER JOIN CLIENTE ON RENTA.Cliente = CLIENTE.Correo
 	INNER JOIN PELICULA ON RENTA.Pelicula = PELICULA.Nombre
 	INNER JOIN DIRECCION ON CLIENTE.idDireccion = DIRECCION.idDireccion 
 	GROUP BY DIRECCION.Ciudad, DIRECCION.Pais, PELICULA.Categoria
 	ORDER BY Direccion.Pais ASC;
-					 
-SELECT * FROM CONT_CAT WHERE 		 
-(SELECT MAX (CONT) FROM CONT_CAT CC
 
-SELECT CF.Ciudad, CF.Pais, CF.Categoria, 
-					 (SELECT MAX (CONT) FROM CONT_CAT CC WHERE CC.Ciudad=CF.Ciudad and CC.Pais=CF.Pais) FROM CONT_CAT CF
+SELECT CF.Ciudad, CF.Pais FROM CONT_CAT CF
  WHERE CF.CONT=(SELECT MAX (CONT) FROM CONT_CAT CC WHERE CC.Ciudad=CF.Ciudad and CC.Pais=CF.Pais)
  and CF.Categoria='Horror';
