@@ -1,6 +1,6 @@
 -- Database: practica
 
-DROP DATABASE IF EXISTS practica;
+-- DROP DATABASE practica;
 
 CREATE DATABASE practica
     WITH 
@@ -10,7 +10,7 @@ CREATE DATABASE practica
     LC_CTYPE = 'es_GT.UTF-8'
     TABLESPACE = pg_default
     CONNECTION LIMIT = -1;
-
+	
 --------------------------------------------------- TEMPORAL ---------------------------------------------------
 CREATE TABLE IF NOT EXISTS PUBLIC.TEMPORAL(
     NOMBRE_CLIENTE VARCHAR,
@@ -113,7 +113,7 @@ WHERE NOT EXISTS(SELECT FROM DIRECCION WHERE
 				 not(DIRECCION_TIENDA='-' and CODIGO_POSTAL_TIENDA='-' and CIUDAD_TIENDA='-' and PAIS_TIENDA='-') and
 				 not(NOMBRE_CLIENTE='-') and
 				 not(NOMBRE_TIENDA='-') and
-				 not(NOMBRE_EMPLEADO
+				 not(NOMBRE_EMPLEADO='-');
 					 
 SELECT * FROM DIRECCION;
 				 
@@ -151,7 +151,7 @@ INSERT INTO CLIENTE
    ON CONFLICT (Correo)
 DO NOTHING;
 
--- Para actualizar las rentas por cliente
+-- Para actualizar las rentas por cliente(parcialmente porque no esta la tabla de rentas aun)
 UPDATE CLIENTE SET Rentas=(SELECT COUNT(*) FROM (SELECT DISTINCT CORREO_CLIENTE, NOMBRE_PELICULA, COUNT(*) 
 									   FROM TEMPORAL WHERE NOT CORREO_CLIENTE='-'
 GROUP BY CORREO_CLIENTE, NOMBRE_PELICULA) AS FOO WHERE Correo=CORREO_CLIENTE
@@ -322,6 +322,14 @@ WHERE NOT EXISTS (SELECT FROM RENTA WHERE FechaRenta=FECHA_RENTA and
 				 and EXISTS (SELECT Correo FROM CLIENTE WHERE Correo=CORREO_CLIENTE)
 				 and EXISTS (SELECT Nombre FROM TIENDA WHERE Nombre=NOMBRE_TIENDA)
 				 and EXISTS (SELECT Nombre FROM PELICULA WHERE Nombre=NOMBRE_PELICULA);
+			
+-- Se actualizan las rentas para cada cliente
+UPDATE CLIENTE CF SET Rentas=(SELECT COUNT(*) FROM RENTA INNER JOIN CLIENTE CL ON RENTA.Cliente=CL.Correo 
+WHERE CL.Nombre=Cl.Nombre and CL.Apellido=CF.Apellido);
+
+-- Para actualizar la cantidad de cada pelicula
+UPDATE PELICULA SET Cantidad=(SELECT COUNT(*) FROM 
+(SELECT DISTINCT Pelicula, FechaRenta, Cliente FROM RENTA WHERE Pelicula=Nombre) AS FOO);
 				
 DROP TABLE IF EXISTS RENTA;
 DROP TABLE IF EXISTS ACTOR;
@@ -340,18 +348,13 @@ SELECT * FROM CLIENTE;
 SELECT * FROM DIRECCION;
 SELECT * FROM TEMPORAL;
 
-SELECT * FROM TEMPORAL WHERE NOMBRE_PELICULA='GANDHI KWAI';
-SELECT * FROM PELICULA WHERE Nombre='GANDHI KWAI'; Daryl Crawford
-SELECT * FROM ACTOR WHERE NombreCompleto='Daryl Crawford';  Gina Degeneres
-SELECT * FROM ACTOR WHERE NombreCompleto='Meg Hawke'; 
-
 --------------------------------------------------- CONSULTAS ---------------------------------------------------
 -- 1)
 -- RESULTADO = 17	 
 SELECT Nombre, Cantidad FROM PELICULA WHERE Nombre='SUGAR WONKA';
 					 
 -- 2)
--- RESULTADO = 6 CLIENTES
+-- RESULTADO = 7 CLIENTES
 SELECT DISTINCT CLIENTE.Nombre, CLIENTE.Apellido, 
 					 (SELECT SUM(CAST(RENTA1.MontoPagar AS DECIMAL)) FROM RENTA RENTA1 INNER JOIN CLIENTE CLIENTE1 
 					  ON RENTA1.Cliente = CLIENTE1.Correo WHERE CLIENTE1.Correo=CLIENTE.Correo)as Monto 
@@ -359,7 +362,7 @@ FROM CLIENTE INNER JOIN RENTA ON CLIENTE.Correo = RENTA.Cliente
 WHERE CLIENTE.Rentas >39;					 
 					
 -- 3) 
-SELECT NombreCompleto FROM ACTOR WHERE (position('son' in LOWER(Apellido))>0) ORDER BY Nombre ASC;
+SELECT DISTINCT NombreCompleto FROM ACTOR WHERE (position('son' in LOWER(Apellido))>0) ORDER BY NombreCompleto ASC;
 
 -- 4)
 SELECT PELICULA.Nombre, PELICULA.Descripcion, ACTOR.NombreCompleto, Pelicula.AnioLanzamiento
@@ -370,10 +373,12 @@ WHERE( (position('crocodile' in LOWER(PELICULA.Descripcion))>0) and
 ORDER BY ACTOR.Apellido ASC;
 
 -- 5)
-SELECT DIRECCION.Pais, CLIENTE.Nombre, CLIENTE.Apellido,
+SELECT DISTINCT DIRECCION.Pais, CLIENTE.Nombre, CLIENTE.Apellido,
 					 CONCAT(ROUND(((CLIENTE.Rentas)::DECIMAL*100
 								   /
-								   (SELECT SUM(Rentas) FROM CLIENTE)::DECIMAL)::DECIMAL, 2),' %') as porcentaje 
+					(SELECT SUM(Rentas) FROM CLIENTE CL  INNER JOIN DIRECCION DR
+					 ON CL.idDireccion=DR.idDireccion
+					 WHERE DR.Pais=DIRECCION.Pais)::DECIMAL)::DECIMAL, 2),' %') as porcentaje 
 FROM DIRECCION INNER JOIN CLIENTE ON DIRECCION.idDireccion = CLIENTE.idDireccion 
 WHERE CLIENTE.Rentas = (SELECT MAX (Rentas) FROM CLIENTE);
 	 
@@ -389,17 +394,6 @@ SELECT DISTINCT (SELECT COUNT(*) FROM CLIENTE) AS TOTAL_CLIENTES, D.Pais, D.Ciud
 	WHERE DIRECCION.Pais=D.Pais
 	GROUP BY DIRECCION.Pais)::DECIMAL, 2), ' %') as Porcentaje
 FROM DIRECCION D ORDER BY D.Pais ASC;
-
--- Comprobacion de que los porcentajes suman 100.
-SELECT (SELECT COUNT(*) FROM CLIENTE) AS TOTAL_CLIENTES, D.Pais, D.Ciudad, ((SELECT COUNT(*)
-FROM DIRECCION INNER JOIN CLIENTE ON DIRECCION.idDireccion = CLIENTE.idDireccion
-WHERE DIRECCION.Pais=D.Pais AND DIRECCION.Ciudad=D.Ciudad
-GROUP BY DIRECCION.Pais, DIRECCION.Ciudad)*100/(
-	SELECT COUNT(*)
-	FROM DIRECCION INNER JOIN CLIENTE ON DIRECCION.idDireccion = CLIENTE.idDireccion
-	WHERE DIRECCION.Pais=D.Pais
-	GROUP BY DIRECCION.Pais)) as Porcentaje
-FROM DIRECCION D WHERE D.Pais='United States';
 
 -- 7)  
 -- promedio = (rentas totales pais y ciudad)/(no.ciudades por pais) DEFINITIVE
@@ -480,7 +474,7 @@ CREATE TEMP TABLE IF NOT EXISTS CONT_CAT AS
 SELECT CF.Ciudad, CF.Pais FROM CONT_CAT CF
  WHERE CF.CONT=(SELECT MAX (CONT) FROM CONT_CAT CC WHERE CC.Ciudad=CF.Ciudad and CC.Pais=CF.Pais)
  and CF.Categoria='Horror';
-					 
+				
 --------------------------------------------------- CONTEOS ---------------------------------------------------
 SELECT COUNT(*) FROM TEMPORAL;
 SELECT COUNT(*) FROM DIRECCION;
@@ -490,10 +484,3 @@ SELECT COUNT(*) FROM TIENDA;
 SELECT COUNT(*) FROM PELICULA;
 SELECT COUNT(*) FROM ACTOR;
 SELECT COUNT(*) FROM RENTA;
-
-
-
-
-
-					
-					 
