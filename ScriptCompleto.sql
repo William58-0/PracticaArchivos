@@ -151,12 +151,6 @@ INSERT INTO CLIENTE
    ON CONFLICT (Correo)
 DO NOTHING;
 
--- Para actualizar las rentas por cliente(parcialmente porque no esta la tabla de rentas aun)
-UPDATE CLIENTE SET Rentas=(SELECT COUNT(*) FROM (SELECT DISTINCT CORREO_CLIENTE, NOMBRE_PELICULA, COUNT(*) 
-									   FROM TEMPORAL WHERE NOT CORREO_CLIENTE='-'
-GROUP BY CORREO_CLIENTE, NOMBRE_PELICULA) AS FOO WHERE Correo=CORREO_CLIENTE
-GROUP BY CORREO_CLIENTE);
-
 ------------------------------------------------------------------------- TABLA EMPLEADO
 CREATE TABLE IF NOT EXISTS PUBLIC.EMPLEADO(
 	Nombre VARCHAR, 
@@ -264,10 +258,6 @@ WHERE not TIENDA_PELICULA='-'
 ON CONFLICT(Nombre)
 DO NOTHING;
 
--- Para actualizar la cantidad de cada pelicula
-UPDATE PELICULA SET Cantidad=(SELECT DISTINCT COUNT(*) FROM TEMPORAL
-GROUP BY NOMBRE_PELICULA, ACTOR_PELICULA HAVING Nombre=NOMBRE_PELICULA);
-				 
 ------------------------------------------------------------------------- TABLA ACTOR
 CREATE TABLE IF NOT EXISTS PUBLIC.ACTOR(
 	NombreCompleto VARCHAR,
@@ -318,14 +308,16 @@ FROM TEMPORAL
 WHERE NOT EXISTS (SELECT FROM RENTA WHERE FechaRenta=FECHA_RENTA and
 				 FechaRetorno=FECHA_RETORNO and MontoPagar=MONTO_A_PAGAR::DECIMAL and
 				 FechaPago=FECHA_PAGO and Cliente=CORREO_CLIENTE and
-				 Tienda=NOMBRE_TIENDA and Pelicula=NOMBRE_PELICULA) and not FECHA_RENTA='-'
+				 Tienda=NOMBRE_TIENDA and Pelicula=NOMBRE_PELICULA)
+				 and not FECHA_RENTA='-'
+				 and not NOMBRE_CLIENTE='-'
 				 and EXISTS (SELECT Correo FROM CLIENTE WHERE Correo=CORREO_CLIENTE)
 				 and EXISTS (SELECT Nombre FROM TIENDA WHERE Nombre=NOMBRE_TIENDA)
 				 and EXISTS (SELECT Nombre FROM PELICULA WHERE Nombre=NOMBRE_PELICULA);
 			
 -- Se actualizan las rentas para cada cliente
 UPDATE CLIENTE CF SET Rentas=(SELECT COUNT(*) FROM RENTA INNER JOIN CLIENTE CL ON RENTA.Cliente=CL.Correo 
-WHERE CL.Nombre=Cl.Nombre and CL.Apellido=CF.Apellido);
+WHERE CL.Nombre=CF.Nombre and CL.Apellido=CF.Apellido and CL.Correo=CF.Correo);
 
 -- Para actualizar la cantidad de cada pelicula
 UPDATE PELICULA SET Cantidad=(SELECT COUNT(*) FROM 
