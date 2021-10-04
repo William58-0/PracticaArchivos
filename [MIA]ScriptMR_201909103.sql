@@ -2,6 +2,7 @@
 -- Database: practica
 
 DROP TABLE IF EXISTS RENTA;
+DROP TABLE IF EXISTS CATEGORIA;
 DROP TABLE IF EXISTS ACTOR;
 DROP TABLE IF EXISTS PELICULA;
 DROP TABLE IF EXISTS TIENDA;
@@ -68,7 +69,6 @@ CREATE TABLE IF NOT EXISTS PUBLIC.PELICULA(
 	CostoDanio VARCHAR,
 	Clasificacion VARCHAR,
 	Lenguaje VARCHAR,
-	Categoria VARCHAR,
 	Cantidad INTEGER,
 	FOREIGN KEY(Tienda)
 	REFERENCES TIENDA(Nombre)
@@ -81,6 +81,14 @@ CREATE TABLE IF NOT EXISTS PUBLIC.ACTOR(
 	Apellido VARCHAR,
 	Pelicula VARCHAR,
 	PRIMARY KEY (NombreCompleto, Pelicula),
+	FOREIGN KEY (Pelicula) REFERENCES PELICULA(Nombre)
+);
+
+------------------------------------------------------------------------- TABLA CATEGORIA
+CREATE TABLE IF NOT EXISTS PUBLIC.CATEGORIA(
+	Nombre VARCHAR,
+	Pelicula VARCHAR,
+	PRIMARY KEY (Nombre, Pelicula),
 	FOREIGN KEY (Pelicula) REFERENCES PELICULA(Nombre)
 );
 				 

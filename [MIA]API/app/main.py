@@ -174,12 +174,14 @@ try:
                     ' FROM RENTA RENTA2'+
                     ' INNER JOIN CLIENTE CLIENTE2  ON RENTA2.Cliente = CLIENTE2.Correo'+
                     ' INNER JOIN PELICULA PELICULA2 ON RENTA2.Pelicula = PELICULA2.Nombre'+
+                    ' INNER JOIN CATEGORIA CATEGORIA2 ON RENTA2.Pelicula = CATEGORIA2.Pelicula'+
                     ' INNER JOIN DIRECCION DIRECCION2 ON CLIENTE2.idDireccion = DIRECCION2.idDireccion'+
-                    ' WHERE DIRECCION2.Pais=DP.Pais and PELICULA2.Categoria=\'Sports\' HAVING COUNT(*)>0)::DECIMAL*100 /'+
+                    ' WHERE DIRECCION2.Pais=DP.Pais and CATEGORIA2.Nombre=\'Sports\' HAVING COUNT(*)>0)::DECIMAL*100 /'+
                     ' NULLIF((SELECT DISTINCT COUNT(*)'+
                     ' FROM RENTA RENTA1'+
                     ' INNER JOIN CLIENTE CLIENTE1  ON RENTA1.Cliente = CLIENTE1.Correo'+
                     ' INNER JOIN PELICULA PELICULA1 ON RENTA1.Pelicula = PELICULA1.Nombre'+
+                    ' INNER JOIN CATEGORIA CATEGORIA1 ON RENTA1.Pelicula = CATEGORIA1.Pelicula'+
                     ' INNER JOIN DIRECCION DIRECCION1 ON CLIENTE1.idDireccion = DIRECCION1.idDireccion'+
                     ' WHERE DIRECCION1.Pais=DP.Pais'+
                     ' HAVING COUNT(*)>0)::DECIMAL,0)'+
@@ -204,7 +206,7 @@ try:
 
     @app.route("/consulta9")
     def consulta9():    
-        cur.execute('SELECT DP.Ciudad, (SELECT COUNT(*)'+
+        cur.execute('SELECT DISTINCT DP.Ciudad, (SELECT COUNT(*)'+
 						' FROM RENTA'+ 
 						' INNER JOIN CLIENTE ON RENTA.Cliente = CLIENTE.Correo'+
 						' INNER JOIN PELICULA ON RENTA.Pelicula = PELICULA.Nombre'+
@@ -240,16 +242,17 @@ try:
     def consulta10():    
         cur.execute('DROP TABLE IF EXISTS CONT_CAT;'+
                 ' CREATE TEMP TABLE IF NOT EXISTS CONT_CAT AS'+ 				 
-                ' SELECT DISTINCT DIRECCION.Ciudad, DIRECCION.Pais, PELICULA.Categoria, COUNT(*) AS CONT'+
+                ' SELECT DISTINCT DIRECCION.Ciudad, DIRECCION.Pais, CATEGORIA.Nombre, COUNT(*) AS CONT'+
                 ' FROM RENTA'+
                 ' INNER JOIN CLIENTE ON RENTA.Cliente = CLIENTE.Correo'+
                 ' INNER JOIN PELICULA ON RENTA.Pelicula = PELICULA.Nombre'+
+                ' INNER JOIN CATEGORIA ON RENTA.Pelicula = CATEGORIA.Pelicula'+
                 ' INNER JOIN DIRECCION ON CLIENTE.idDireccion = DIRECCION.idDireccion'+ 
-                ' GROUP BY DIRECCION.Ciudad, DIRECCION.Pais, PELICULA.Categoria'+
+                ' GROUP BY DIRECCION.Ciudad, DIRECCION.Pais, CATEGORIA.Nombre'+
                 ' ORDER BY Direccion.Pais ASC;'+
                 ' SELECT CF.Ciudad, CF.Pais FROM CONT_CAT CF'+
                 ' WHERE CF.CONT=(SELECT MAX (CONT) FROM CONT_CAT CC WHERE CC.Ciudad=CF.Ciudad and CC.Pais=CF.Pais)'+
-                ' and CF.Categoria=\'Horror\';')
+                ' and CF.Nombre=\'Horror\';')
         cadena="<TABLE BORDER><TR><TH>No.</TH><TH>Ciudad</TH> <TH>Pais</TH></TR>"
         rows = cur.fetchall()
         for row in range(len(rows)):
@@ -268,6 +271,7 @@ try:
     @app.route("/eliminarModelo")
     def eliminarModelo():    
         cur.execute('DROP TABLE IF EXISTS RENTA;'+
+                ' DROP TABLE IF EXISTS CATEGORIA;'+
                 ' DROP TABLE IF EXISTS ACTOR;'+
                 ' DROP TABLE IF EXISTS PELICULA;'+
                 ' DROP TABLE IF EXISTS TIENDA;'+
@@ -300,7 +304,7 @@ try:
         with open(str(relative)+"/../[MIA]CargaDeDatos_201909103.sql","r") as archivo:
             paraejecutar=""
             for linea in archivo:
-                paraejecutar+=linea
+                paraejecutar+=linea  
             cur.execute(paraejecutar)
         return "<h1>Se cargaron los datos al modelo</h1>"
 
